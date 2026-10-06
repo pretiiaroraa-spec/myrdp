@@ -104,17 +104,25 @@ class BrowserManager:
                             from playwright.async_api import async_playwright
                             self.playwright = await async_playwright().start()
                 kwargs = {"executable_path": str(installed)} if self.test_executable else {"channel": BROWSERS[p.browser]}
-                # Playwright disables all extensions by default.  This manager
-                # explicitly supports user-managed extensions, including normal
-                # browser-store installs, so retain the browser's extension
-                # system for every isolated profile.
-                ignored_default_args = ["--disable-extensions"]
+                # Playwright is optimized for test automation and disables the
+                # extension/update path by default.  This desktop manager uses
+                # normal, visible browsers, so restore the browser features
+                # required by Edge Add-ons and Chrome Web Store installations.
+                ignored_default_args = [
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--disable-component-update",
+                    "--disable-default-apps",
+                ]
                 if platform.system() == "Windows":
                     # Windows does not need this Linux sandbox flag; leaving it
                     # in causes Edge to show an unsupported-flag warning.
                     ignored_default_args.append("--no-sandbox")
                 kwargs["ignore_default_args"] = ignored_default_args
-                browser_args = ["--no-first-run", "--no-default-browser-check", "--disable-sync", *self.extension_args()]
+                browser_args = [
+                    "--no-first-run", "--no-default-browser-check", "--disable-sync",
+                    "--enable-extensions", *self.extension_args(),
+                ]
                 if window_bounds:
                     x, y, width, height = window_bounds
                     browser_args.extend((f"--window-position={x},{y}", f"--window-size={width},{height}"))

@@ -28,8 +28,11 @@ def test_channels_duplicate_launch_and_close(environment, browser, channel):
     arguments = playwright.chromium.launch_persistent_context.call_args.kwargs
     assert arguments['channel'] == channel and arguments['user_data_dir'] == str(p.path)
     assert arguments['headless'] is False
-    assert arguments['args'] == ['--no-first-run', '--no-default-browser-check', '--disable-sync']
-    assert '--disable-extensions' in arguments['ignore_default_args']
+    assert arguments['args'] == ['--no-first-run', '--no-default-browser-check', '--disable-sync', '--enable-extensions']
+    assert set(arguments['ignore_default_args']) >= {
+        '--disable-extensions', '--disable-background-networking',
+        '--disable-component-update', '--disable-default-apps',
+    }
 
 
 @pytest.mark.parametrize('browser', ['Microsoft Edge', 'Google Chrome'])

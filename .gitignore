@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+.pytest_cache/
+dola_profile_manager/data/
+dola_profile_manager/profiles/
+dola_profile_manager/exports/
+dola_profile_manager/imports/
+dola_profile_manager/logs/

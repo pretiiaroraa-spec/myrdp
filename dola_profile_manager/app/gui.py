@@ -146,18 +146,6 @@ class Application:
         row = ttk.Frame(right); row.pack(fill="x")
         self.button(row, "Export Browser State", self.export_browser_state)
         self.button(row, "Import Browser State", self.import_browser_state)
-        helper = ttk.LabelFrame(frame, text="Manual verification helper • Focus the target field in the browser before pasting", padding=7)
-        helper.pack(fill="x")
-        self.phone, self.otp = tk.StringVar(), tk.StringVar()
-        for label, variable in (("Phone Number", self.phone), ("OTP", self.otp)):
-            row = ttk.Frame(helper); row.pack(fill="x")
-            ttk.Label(row, text=label, width=14).pack(side="left")
-            ttk.Entry(row, textvariable=variable, width=34, show="•" if label == "OTP" else "").pack(side="left", padx=5)
-            self.button(row, "Copy", lambda v=variable: self.copy(v.get()))
-            self.button(row, "Paste to Browser" if label != "OTP" else "Enter OTP", lambda v=variable: self.paste(v.get()))
-        self.button(helper, "Clear Sensitive Fields", lambda: (self.phone.set(""), self.otp.set("")))
-        ttk.Label(helper, text="Complete login, CAPTCHA and all verification yourself. Marking complete is your confirmation, not an account-status check.").pack(anchor="w")
-
     def selected(self):
         selection = self.table.selection()
         if not selection:
@@ -444,9 +432,6 @@ class Application:
                 pass
         self.root.after(30000, clear)
 
-    def paste(self, value) -> None:
-        self.submit(self.browsers.type_value(self.selected(), value), "User-provided value typed into the focused browser field.")
-
     def save_path(self, p, suffix, extension):
         folder = Path(self.settings.values["export_folder"]); folder.mkdir(parents=True, exist_ok=True)
         path = filedialog.asksaveasfilename(initialdir=folder, initialfile=filename(p.name, suffix) + extension, defaultextension=extension, filetypes=[(extension.upper(), "*" + extension)], confirmoverwrite=False)
@@ -623,6 +608,5 @@ class Application:
             if not future.done():
                 self.root.after(100, finish); return
             self.closing = True
-            self.phone.set(""); self.otp.set("")
             self.worker.stop(); self.root.destroy()
         finish()

@@ -94,17 +94,14 @@ def test_gui_browser_exports_and_state_workflow(environment, tmp_path):
             assert len(app.browsers.contexts) == 2
             async def prepare():
                 for context in app.browsers.contexts.values():
-                    await context.route('https://dola.com/**', lambda route: route.fulfill(status=200, content_type='text/html', body='<html><input id="phone"><input id="otp"></html>'))
+                    await context.route('https://dola.com/**', lambda route: route.fulfill(status=200, content_type='text/html', body='<html>Local Dola test page</html>'))
             app.worker.submit(prepare()).result(timeout=10)
             app.table.selection_set(first.id)
             app.navigate('https://dola.com/'); wait(root, app)
             async def focus_and_seed():
                 context = app.browsers.context(first)
                 await context.add_cookies([{'name':'gui-test', 'value':'synthetic', 'domain':'dola.com', 'path':'/'}])
-                page = await app.browsers.current_page(first)
-                await page.locator('#phone').focus()
             app.worker.submit(focus_and_seed()).result(timeout=10)
-            app.phone.set('+15550000000'); app.paste(app.phone.get()); wait(root, app)
             app.complete(); wait(root, app)
             assert str(app.cookie_button.cget('state')) == 'normal'
             for format in ('JSON', 'TXT'):

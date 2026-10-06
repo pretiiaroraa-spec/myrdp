@@ -22,6 +22,16 @@ def test_exports_preserve_fields_filter_domains_and_prevent_overwrite(environmen
     txt = tmp_path / 'cookies.txt'
     export_cookies(p, cookies, txt, 'TXT')
     assert 'partitionKey' in txt.read_text() and 'test-only' in txt.read_text()
+    all_domains = tmp_path / 'all-domains.json'
+    export_cookies(p, cookies, all_domains, 'JSON', dola_only=False)
+    payload = json.loads(all_domains.read_text())
+    assert payload['website'] == 'all browser domains'
+    assert payload['cookies'] == cookies
+    netscape = tmp_path / 'cookies-netscape.txt'
+    export_cookies(p, [COOKIE], netscape, 'NETSCAPE')
+    exported = netscape.read_text().splitlines()
+    assert exported[:2] == ['# Netscape HTTP Cookie File', '# https://curl.se/docs/http-cookies.html']
+    assert exported[-1].split('\t')[:6] == ['.dola.com', 'TRUE', '/', 'TRUE', '0', 'session']
 
 
 @pytest.mark.parametrize('cookies', [[COOKIE | {'domain': 'notdola.com'}], [{}], [{'name': 1}], [COOKIE | {'expires': float('nan')}], [COOKIE | {'httpOnly': 'true'}]])

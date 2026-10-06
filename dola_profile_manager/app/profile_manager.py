@@ -1,5 +1,6 @@
 """Profile lifecycle operations with guarded filesystem ownership."""
 from pathlib import Path
+import json
 import logging
 import shutil
 import uuid
@@ -13,6 +14,24 @@ class ProfileManager:
     def __init__(self, database, settings):
         self.db, self.settings = database, settings
         self.active_ids: set[str] = set()
+
+    @staticmethod
+    def _initialize_clean_browser_data(path: Path, profile_id: str) -> None:
+        """Create a fresh Chromium data root with sync and first-run import disabled."""
+        (path / ".profile-owner").write_text(profile_id, encoding="utf-8")
+        (path / ".clean-browser-profile").write_text("1", encoding="utf-8")
+        # Chromium-family browsers use this sentinel to skip first-run import.
+        (path / "First Run").touch(exist_ok=True)
+        local_state = {
+            "signin": {"allowed": False},
+            "sync": {"requested": False},
+        }
+        (path / "Local State").write_text(json.dumps(local_state), encoding="utf-8")
+
+    def is_clean_browser_profile(self, profile: Profile) -> bool:
+        path = self.verify(profile)
+        marker = path / ".clean-browser-profile"
+        return marker.is_file() and not marker.is_symlink() and marker.read_text(encoding="utf-8") == "1"
 
     def verify(self, profile: Profile) -> Path:
         path = profile.path
@@ -37,7 +56,7 @@ class ProfileManager:
         root.mkdir(parents=True, exist_ok=True)
         path = root / profile_id
         path.mkdir(mode=0o700)
-        (path / ".profile-owner").write_text(profile_id, encoding="utf-8")
+        self._initialize_clean_browser_data(path, profile_id)
         stamp = now()
         p = Profile(profile_id, name, browser, str(path), stamp, stamp, None, "Closed", notes)
         try:

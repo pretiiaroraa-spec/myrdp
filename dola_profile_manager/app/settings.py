@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 
 DEFAULTS = {"default_browser": "Microsoft Edge", "cookie_format": "JSON",
-            "auto_refresh": True, "theme": "Light", "log_level": "INFO"}
+            "auto_refresh": True, "theme": "Dark", "log_level": "INFO"}
 
 
 class Settings:
@@ -19,7 +19,7 @@ class Settings:
         values = self.values | changes
         if values["default_browser"] not in ("Microsoft Edge", "Google Chrome"):
             raise ValueError("Unsupported browser.")
-        if values["cookie_format"] not in ("JSON", "TXT") or values["theme"] not in ("Light", "Dark"):
+        if values["cookie_format"] not in ("JSON", "TXT", "NETSCAPE") or values["theme"] not in ("Light", "Dark"):
             raise ValueError("Invalid preference.")
         if values["log_level"] not in ("INFO", "WARNING", "ERROR"):
             raise ValueError("Invalid log level.")

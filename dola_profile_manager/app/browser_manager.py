@@ -62,6 +62,11 @@ class BrowserManager:
                     return self.contexts[p.id]
                 raise ValueError("This profile is already running.")
             self.profiles.verify(p)
+            if not self.profiles.is_clean_browser_profile(p):
+                raise ValueError(
+                    "This legacy profile may contain imported personal browser data. "
+                    "It was left unchanged. Create a new profile for a fresh browser session."
+                )
             installed = self.test_executable or detect_browser(p.browser)
             if not installed:
                 raise ValueError(f"{p.browser} was not found on this computer.")
@@ -70,8 +75,13 @@ class BrowserManager:
                     from playwright.async_api import async_playwright
                     self.playwright = await async_playwright().start()
                 kwargs = {"executable_path": str(installed)} if self.test_executable else {"channel": BROWSERS[p.browser]}
+                if platform.system() == "Windows":
+                    # Playwright adds this by default; Windows does not need it and
+                    # Edge otherwise shows an unsupported-command-line warning.
+                    kwargs["ignore_default_args"] = ["--no-sandbox"]
                 context = await self.playwright.chromium.launch_persistent_context(
-                    user_data_dir=str(p.path), headless=self.headless, no_viewport=True, **kwargs)
+                    user_data_dir=str(p.path), headless=self.headless, no_viewport=True,
+                    args=["--no-first-run", "--no-default-browser-check", "--disable-sync"], **kwargs)
             except ImportError:
                 raise ValueError("Playwright is unavailable. Install requirements.txt.") from None
             except Exception:

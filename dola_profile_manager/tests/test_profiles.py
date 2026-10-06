@@ -1,3 +1,4 @@
+import json
 import pytest
 from app.utils import valid_url
 
@@ -6,6 +7,12 @@ def test_lifecycle_and_filesystem_isolation(environment):
     db, settings, manager = environment
     profiles = [manager.create(f'Profile {i:03}', browser) for i, browser in enumerate(('Microsoft Edge', 'Google Chrome', 'Microsoft Edge'), 1)]
     assert len({p.directory for p in profiles}) == 3
+    for profile in profiles:
+        assert manager.is_clean_browser_profile(profile)
+        assert (profile.path / 'First Run').is_file()
+        assert json.loads((profile.path / 'Local State').read_text()) == {
+            'signin': {'allowed': False}, 'sync': {'requested': False},
+        }
     assert len(db.list()) == 3
     assert len(db.list('Chrome')) == 1
     assert db.list(profiles[0].id)[0].id == profiles[0].id

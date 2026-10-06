@@ -33,7 +33,7 @@ The application creates `data/app.db`, `profiles/`, `exports/`, `imports/` and `
 ## Using the dashboard
 
 1. Select Microsoft Edge or Google Chrome, then **Create Profile**. Enter its name, browser, optional non-sensitive notes and how many isolated profiles to create. For a batch, names such as `Profile 001` continue sequentially (`Profile 002`, `Profile 003`, and so on). There is no application-defined maximum.
-2. Select the profile and **Launch**. It opens that profile and automatically brings Dola.com to the foreground. Use **Launch All on Dola.com** to open every saved profile independently; the app continues opening the remaining profiles if one browser launch fails and reports the affected profile.
+2. Select one or more rows with Ctrl/Shift and click **Launch Selected**, or click **Launch All on Dola.com**. Each selected profile opens independently; the app continues if one browser launch fails and reports the affected profile.
 3. Complete signup/login manually in the visible browser. Enter your phone number, password, OTP and any verification yourself.
 4. The optional helper can copy supplied phone/OTP text, or type it into the browser field you have explicitly focused. **Enter OTP types text only; it does not press Submit or retrieve a code.** The helper does not identify form selectors automatically. Cross-origin embedded frames are not supported by the helper; enter text directly in the browser for those fields.
 5. Click **Mark Signup Complete** after you finish. The app reloads an open `dola.com` page, waits for load completion and confirms the context remains managed. This is your confirmation of completion, not an automated check of account status.
@@ -46,7 +46,9 @@ Search matches profile name, ID, browser and status. Sort by name, created date,
 
 ## Profile isolation and lifecycle
 
-Each profile gets a UUID ID and an independent `profiles/profile_<uuid>/` directory. Names such as "Profile 001" are display names. The database enforces unique directory paths; ownership markers and path checks guard lifecycle operations. Each launch uses a separate persistent browser context and data directory. Cookies, local storage, IndexedDB, cache and preferences are separated by normal Chrome/Edge filesystem behavior. The same profile cannot be launched twice by this application; native browser locking provides another layer of protection.
+Each profile gets a UUID ID and an independent `profiles/profile_<uuid>/` directory. Names such as "Profile 001" are display names. New profiles write a Chromium first-run sentinel and start with browser sync disabled, so they do not import the normal Microsoft Edge or Chrome profile. The database enforces unique directory paths; ownership markers and path checks guard lifecycle operations. Each launch uses a separate persistent browser context and data directory. Cookies, local storage, IndexedDB, cache and preferences are separated by normal Chrome/Edge filesystem behavior. The same profile cannot be launched twice by this application; native browser locking provides another layer of protection.
+
+Profiles made with older releases are left unchanged. If the app identifies one as older, it blocks launch rather than risk opening personal browser data. Create a new profile for a fresh session; the app never silently deletes or changes an existing profile.
 
 - **Rename:** changes metadata only; the directory stays stable.
 - **Duplicate:** requires closure, warns about session data and copies into a newly allocated directory. It refuses links and known external lock files. A duplicate intentionally starts with copied browser state; later changes are independent. Browser/OS encryption may limit portability across machines or Windows accounts.
@@ -63,9 +65,10 @@ Cookie export retrieves cookies through Playwright and filters to `dola.com` and
 
 - `Profile_001_Dola_Cookies.json` — metadata plus the complete cookie objects.
 - `Profile_001_Dola_Cookies.txt` — readable, JSON-escaped attribute values, preserving additional fields such as partition keys.
+- **NETSCAPE** format — standard seven-column Netscape/curl cookie-jar TXT for compatible tools. It cannot preserve modern extra attributes, so JSON remains the full-fidelity option.
 - `Profile_001_Browser_State.json` — Playwright state for **all origins** in the selected context.
 
-The save dialog supports folders and custom/timestamped filenames. Existing files require confirmation before replacement; writes refuse an unexpected overwrite by default.
+The save dialog supports folders and custom/timestamped filenames. Existing files require confirmation before replacement; writes refuse an unexpected overwrite by default. **Export All Profile Cookies** processes every saved Edge/Chrome profile, opening an inactive profile only long enough to read its cookies and then closing it. Choose either Dola.com-only or all current browser domains. The all-domains choice exports files containing credentials for other sites and has a separate warning.
 
 Cookie import accepts the exported JSON object or a Playwright cookie array, validates fields and domains, and asks before replacing matching Dola cookies in the selected active profile. TXT is for reading, not import.
 
@@ -75,7 +78,7 @@ A storage-state file is **not a complete browser-directory backup**: it does not
 
 ## Settings and logging
 
-Settings persist in SQLite: default browser, new-profile folder, export folder, cookie format, light/dark theme and log level. Folder changes apply to future profiles; existing profiles retain their paths. Auto-refresh after signup remains required to enable cookie export and is shown as a fixed enabled setting.
+Settings persist in SQLite: default browser, new-profile folder, export folder, cookie format, light/dark theme and log level. Folder changes apply to future profiles; existing profiles retain their paths. Auto-refresh after signup remains required to enable cookie export and is shown as a fixed enabled setting. The Live Logs tab tails `logs/app.log` as events occur; Clear View clears only the on-screen log, never the file.
 
 Logs rotate at 2 MB with three backups. They record lifecycle, navigation, completion, import/export and error categories. The application never logs cookies, passwords, OTPs, authentication tokens or full browser exception text. Do not put secrets in profile names or notes.
 

@@ -46,7 +46,7 @@ class Application:
         titlebar = ttk.Frame(root)
         titlebar.pack(fill="x", padx=20, pady=(15, 4))
         ttk.Label(titlebar, text="MULTI-BROWSER PROFILE MANAGER", font=("Segoe UI", 19, "bold")).pack(side="left")
-        ttk.Label(titlebar, text="Created by Kashif Hassan", font=("Segoe UI", 10, "bold")).pack(side="right")
+        ttk.Label(titlebar, text="Created by Kashif Hassanat", font=("Segoe UI", 10, "bold")).pack(side="right")
         ttk.Label(root, text="Dola.com  |  Isolated local sessions  |  Microsoft Edge & Google Chrome").pack(anchor="w", padx=20)
         tabs = ttk.Notebook(root)
         tabs.pack(fill="both", expand=True, padx=15, pady=12)
@@ -313,7 +313,11 @@ class Application:
         self.button(row, "Cancel", dialog.destroy)
 
     def launch(self) -> None:
-        self.submit(self.browsers.launch_and_open_dola(self.selected()), "Profile launched and Dola.com opened.")
+        profile = self.selected()
+        self.submit(
+            self.browsers.launch_and_open_dola(profile, self.window_layout([profile])[profile.id]),
+            "Profile launched and Dola.com opened.",
+        )
 
     def launch_selected(self) -> None:
         profiles = self.selected_profiles()
@@ -329,6 +333,7 @@ class Application:
         self.launch_profiles(profiles)
 
     def launch_profiles(self, profiles) -> None:
+        bounds = self.window_layout(profiles)
         def display(result):
             opened, failures = result
             self.status.set(
@@ -341,10 +346,30 @@ class Application:
                     f"Opened {len(opened)} of {len(profiles)} profiles.\n\n" + "\n".join(failures),
                 )
         self.submit(
-            self.browsers.launch_all_and_open_dola(profiles),
+            self.browsers.launch_all_and_open_dola(profiles, bounds),
             "Opening Dola.com in saved profiles.",
             display,
         )
+
+    def window_layout(self, profiles) -> dict[str, tuple[int, int, int, int]]:
+        """Tile new Windows so simultaneous profiles do not stack on each other."""
+        count = len(profiles)
+        if not count:
+            return {}
+        columns = 1 if count == 1 else 2 if count <= 4 else 3
+        rows = (count + columns - 1) // columns
+        margin, top_margin, bottom_margin = 10, 10, 80
+        width = max(480, (self.root.winfo_screenwidth() - margin * (columns + 1)) // columns)
+        height = max(360, (self.root.winfo_screenheight() - top_margin - bottom_margin - margin * (rows - 1)) // rows)
+        return {
+            profile.id: (
+                margin + (index % columns) * (width + margin),
+                top_margin + (index // columns) * (height + margin),
+                width,
+                height,
+            )
+            for index, profile in enumerate(profiles)
+        }
 
     @staticmethod
     def profile_names(first_name: str, count: int) -> list[str]:

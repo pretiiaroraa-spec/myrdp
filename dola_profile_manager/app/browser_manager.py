@@ -55,7 +55,12 @@ class BrowserManager:
     def active(self, profile_id: str) -> bool:
         return profile_id in self.contexts
 
-    async def launch(self, p: Profile, reuse: bool = False):
+    async def launch(
+        self,
+        p: Profile,
+        reuse: bool = False,
+        window_bounds: tuple[int, int, int, int] | None = None,
+    ):
         async with self.lock:
             if self.active(p.id):
                 if reuse:
@@ -79,9 +84,13 @@ class BrowserManager:
                     # Playwright adds this by default; Windows does not need it and
                     # Edge otherwise shows an unsupported-command-line warning.
                     kwargs["ignore_default_args"] = ["--no-sandbox"]
+                browser_args = ["--no-first-run", "--no-default-browser-check", "--disable-sync"]
+                if window_bounds:
+                    x, y, width, height = window_bounds
+                    browser_args.extend((f"--window-position={x},{y}", f"--window-size={width},{height}"))
                 context = await self.playwright.chromium.launch_persistent_context(
                     user_data_dir=str(p.path), headless=self.headless, no_viewport=True,
-                    args=["--no-first-run", "--no-default-browser-check", "--disable-sync"], **kwargs)
+                    args=browser_args, **kwargs)
             except ImportError:
                 raise ValueError("Playwright is unavailable. Install requirements.txt.") from None
             except Exception:
@@ -135,9 +144,9 @@ class BrowserManager:
                 pass
         return pages[-1]
 
-    async def open_url(self, p: Profile, url: str) -> None:
+    async def open_url(self, p: Profile, url: str, window_bounds: tuple[int, int, int, int] | None = None) -> None:
         url = valid_url(url)
-        context = await self.launch(p, reuse=True)
+        context = await self.launch(p, reuse=True, window_bounds=window_bounds)
         pages = [page for page in context.pages if not page.is_closed()]
         # A persistent context normally starts with an empty tab. Reuse it so
         # Launch does not leave an unnecessary blank tab beside Dola.com.
@@ -148,10 +157,10 @@ class BrowserManager:
         await page.bring_to_front()
         log.info("Dola.com opened: %s" if dola_domain(urlsplit(url).hostname or "") else "Website opened: %s", p.id)
 
-    async def launch_and_open_dola(self, p: Profile) -> None:
+    async def launch_and_open_dola(self, p: Profile, window_bounds: tuple[int, int, int, int] | None = None) -> None:
         """Launch one independent profile and bring Dola.com to the foreground."""
         try:
-            await self.open_url(p, DOLA_URL)
+            await self.open_url(p, DOLA_URL, window_bounds)
         except ValueError:
             raise
         except Exception:
@@ -160,13 +169,18 @@ class BrowserManager:
                 "Check your Internet connection and browser certificate settings, then use Open Dola.com to retry."
             ) from None
 
-    async def launch_all_and_open_dola(self, profiles: list[Profile]) -> tuple[list[Profile], list[str]]:
+    async def launch_all_and_open_dola(
+        self,
+        profiles: list[Profile],
+        window_bounds: dict[str, tuple[int, int, int, int]] | None = None,
+    ) -> tuple[list[Profile], list[str]]:
         """Open every saved profile independently, continuing if one fails."""
         opened: list[Profile] = []
         failures: list[str] = []
         for profile in profiles:
             try:
-                await self.launch_and_open_dola(profile)
+                bounds = window_bounds.get(profile.id) if window_bounds else None
+                await self.launch_and_open_dola(profile, bounds)
                 opened.append(profile)
             except ValueError as error:
                 failures.append(f"{profile.name}: {error}")

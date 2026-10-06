@@ -33,7 +33,7 @@ The application creates `data/app.db`, `profiles/`, `exports/`, `imports/` and `
 ## Using the dashboard
 
 1. Select Microsoft Edge or Google Chrome, then **Create Profile**. Enter its name, browser, optional non-sensitive notes and how many isolated profiles to create. For a batch, names such as `Profile 001` continue sequentially (`Profile 002`, `Profile 003`, and so on). There is no application-defined maximum.
-2. Select one or more rows with Ctrl/Shift and click **Launch Selected**, or click **Launch All on Dola.com**. Each selected profile opens independently; the app continues if one browser launch fails and reports the affected profile.
+2. Select one or more rows with Ctrl/Shift and click **Launch Selected**, or click **Launch All on Dola.com**. Each selected profile opens independently and newly launched windows tile into a grid rather than stack behind one another. The app continues if one browser launch fails and reports the affected profile.
 3. Complete signup/login manually in the visible browser. Enter your phone number, password, OTP and any verification yourself.
 4. The optional helper can copy supplied phone/OTP text, or type it into the browser field you have explicitly focused. **Enter OTP types text only; it does not press Submit or retrieve a code.** The helper does not identify form selectors automatically. Cross-origin embedded frames are not supported by the helper; enter text directly in the browser for those fields.
 5. Click **Mark Signup Complete** after you finish. The app reloads an open `dola.com` page, waits for load completion and confirms the context remains managed. This is your confirmation of completion, not an automated check of account status.

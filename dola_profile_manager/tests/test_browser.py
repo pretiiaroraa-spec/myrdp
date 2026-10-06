@@ -54,6 +54,35 @@ def test_launch_all_opens_every_profile_and_reports_individual_failures(environm
     asyncio.run(run())
 
 
+def test_bulk_launch_starts_independent_profiles_concurrently(environment):
+    """A slow profile must not hold up launch of another isolated profile."""
+    db, _, profiles = environment
+    first = profiles.create('Profile 001', 'Microsoft Edge')
+    second = profiles.create('Profile 002', 'Google Chrome')
+    manager = BrowserManager(db, profiles)
+
+    async def run():
+        started = set()
+        both_started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def delayed_launch(profile, bounds=None):
+            started.add(profile.id)
+            if len(started) == 2:
+                both_started.set()
+            await release.wait()
+
+        with patch.object(manager, 'launch_and_open_dola', side_effect=delayed_launch):
+            task = asyncio.create_task(manager.launch_all_and_open_dola([first, second]))
+            await asyncio.wait_for(both_started.wait(), timeout=1)
+            release.set()
+            opened, failures = await task
+        assert opened == [first, second]
+        assert failures == []
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('browser,relative', [('Microsoft Edge', 'Microsoft/Edge/Application/msedge.exe'), ('Google Chrome', 'Google/Chrome/Application/chrome.exe')])
 def test_windows_browser_detection(tmp_path, monkeypatch, browser, relative):
     executable = tmp_path / relative; executable.parent.mkdir(parents=True); executable.touch()

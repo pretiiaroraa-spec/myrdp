@@ -33,8 +33,8 @@ class Application:
         self.log_offset = 0
         self.log_last_read = 0.0
         root.title("Dola.com • Multi-Browser Profile Manager")
-        root.geometry("1180x850")
-        root.minsize(1000, 760)
+        root.geometry("1280x860")
+        root.minsize(1080, 720)
         root.protocol("WM_DELETE_WINDOW", self.quit)
         self.style = ttk.Style(root)
         self.style.theme_use("clam")
@@ -42,40 +42,84 @@ class Application:
         self.browser = tk.StringVar(value=settings.values["default_browser"])
         self.search = tk.StringVar()
         self.sort = tk.StringVar(value="name")
+        self.profile_count = tk.StringVar(value="0 profiles")
         self.status = tk.StringVar(value="Ready • Signup and verification are completed manually in the browser.")
-        titlebar = ttk.Frame(root)
-        titlebar.pack(fill="x", padx=20, pady=(15, 4))
-        ttk.Label(titlebar, text="MULTI-BROWSER PROFILE MANAGER", font=("Segoe UI", 19, "bold")).pack(side="left")
-        ttk.Label(titlebar, text="Created by Kashif Hassanat", font=("Segoe UI", 10, "bold")).pack(side="right")
-        ttk.Label(root, text="Dola.com  |  Isolated local sessions  |  Microsoft Edge & Google Chrome").pack(anchor="w", padx=20)
+        titlebar = ttk.Frame(root, style="App.TFrame")
+        titlebar.pack(fill="x", padx=26, pady=(20, 4))
+        brand = ttk.Frame(titlebar, style="App.TFrame")
+        brand.pack(side="left")
+        ttk.Label(brand, text="DOLA PROFILES", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(brand, text="Private local browser sessions • Microsoft Edge & Google Chrome", style="Subtitle.TLabel").pack(anchor="w", pady=(2, 0))
+        ttk.Label(titlebar, text="Created by Kashif Hassanat", style="Credit.TLabel").pack(side="right", pady=8)
         tabs = ttk.Notebook(root)
-        tabs.pack(fill="both", expand=True, padx=15, pady=12)
-        dashboard, preferences, logs = [ttk.Frame(tabs, padding=12) for _ in range(3)]
+        tabs.pack(fill="both", expand=True, padx=20, pady=14)
+        dashboard, preferences, logs = [ttk.Frame(tabs, padding=8, style="App.TFrame") for _ in range(3)]
         tabs.add(dashboard, text="Profiles")
         tabs.add(preferences, text="Settings")
         tabs.add(logs, text="Live Logs")
         self.build_dashboard(dashboard)
         self.build_settings(preferences)
         self.build_logs(logs)
-        ttk.Label(root, textvariable=self.status, wraplength=1120).pack(fill="x", padx=20, pady=(0, 12))
+        ttk.Label(root, textvariable=self.status, style="Status.TLabel", anchor="w", wraplength=1200).pack(fill="x", padx=26, pady=(0, 14))
         self.search.trace_add("write", lambda *_: self.reload())
         self.reload()
         root.after(100, self.poll)
 
     def apply_theme(self) -> None:
         dark = self.settings.values["theme"] == "Dark"
-        bg, fg, field = ("#202733", "#f0f3f8", "#303b4b") if dark else ("#f4f6fa", "#172638", "#ffffff")
-        self.root.configure(bg=bg)
-        self.style.configure(".", background=bg, foreground=fg, font=("Segoe UI", 10))
-        self.style.configure("Treeview", background=field, fieldbackground=field, foreground=fg, rowheight=29)
-        self.style.configure("TEntry", fieldbackground=field, foreground=fg)
-        self.style.configure("TCombobox", fieldbackground=field, foreground=fg)
-        self.style.configure("TButton", padding=(10, 6))
-        self.style.map("Treeview", background=[("selected", "#2563eb")], foreground=[("selected", "white")])
+        self.colors = (
+            {
+                "app": "#181b21", "card": "#242931", "raised": "#2d333d", "field": "#171b21",
+                "border": "#414956", "text": "#f7f8fb", "muted": "#aeb6c2", "primary": "#ec7d59",
+                "primary_active": "#fa9674", "selected": "#35465f", "danger": "#a94e55",
+            }
+            if dark else {
+                "app": "#f2f4f7", "card": "#ffffff", "raised": "#e9edf2", "field": "#ffffff",
+                "border": "#c7cdd6", "text": "#19212c", "muted": "#66717f", "primary": "#d96848",
+                "primary_active": "#bd5639", "selected": "#dce8f7", "danger": "#b74c54",
+            }
+        )
+        c = self.colors
+        self.root.configure(bg=c["app"])
+        self.style.configure(".", background=c["app"], foreground=c["text"], font=("Segoe UI", 10))
+        self.style.configure("App.TFrame", background=c["app"])
+        self.style.configure("Card.TFrame", background=c["card"])
+        self.style.configure("Card.TLabelframe", background=c["card"], bordercolor=c["border"], relief="solid")
+        self.style.configure("Card.TLabelframe.Label", background=c["card"], foreground=c["text"], font=("Segoe UI", 10, "bold"))
+        self.style.configure("Title.TLabel", background=c["app"], foreground=c["text"], font=("Segoe UI", 21, "bold"))
+        self.style.configure("Subtitle.TLabel", background=c["app"], foreground=c["muted"], font=("Segoe UI", 10))
+        self.style.configure("Credit.TLabel", background=c["raised"], foreground=c["text"], font=("Segoe UI", 9, "bold"), padding=(12, 7))
+        self.style.configure("Section.TLabel", background=c["card"], foreground=c["text"], font=("Segoe UI", 13, "bold"))
+        self.style.configure("Muted.TLabel", background=c["card"], foreground=c["muted"], font=("Segoe UI", 9))
+        self.style.configure("Status.TLabel", background=c["app"], foreground=c["muted"], font=("Segoe UI", 9))
+        self.style.configure("TLabel", background=c["app"], foreground=c["text"])
+        self.style.configure("Card.TLabel", background=c["card"], foreground=c["text"])
+        self.style.configure("TEntry", fieldbackground=c["field"], foreground=c["text"], insertcolor=c["text"], bordercolor=c["border"], padding=(8, 6))
+        self.style.configure("TCombobox", fieldbackground=c["field"], foreground=c["text"], arrowcolor=c["text"], bordercolor=c["border"], padding=(7, 5))
+        self.style.map("TCombobox", fieldbackground=[("readonly", c["field"])], foreground=[("readonly", c["text"])])
+        self.style.configure("Secondary.TButton", background=c["raised"], foreground=c["text"], bordercolor=c["border"], padding=(12, 8), font=("Segoe UI", 9, "bold"))
+        self.style.map("Secondary.TButton", background=[("active", c["border"]), ("disabled", c["raised"])], foreground=[("disabled", c["muted"])])
+        self.style.configure("Primary.TButton", background=c["primary"], foreground="#ffffff", bordercolor=c["primary"], padding=(14, 9), font=("Segoe UI", 9, "bold"))
+        self.style.map("Primary.TButton", background=[("active", c["primary_active"]), ("disabled", c["raised"])], foreground=[("disabled", c["muted"])])
+        self.style.configure("Danger.TButton", background=c["danger"], foreground="#ffffff", bordercolor=c["danger"], padding=(12, 8), font=("Segoe UI", 9, "bold"))
+        self.style.map("Danger.TButton", background=[("active", "#c25a62")])
+        self.style.configure("Treeview", background=c["field"], fieldbackground=c["field"], foreground=c["text"], bordercolor=c["border"], rowheight=34, font=("Segoe UI", 10))
+        self.style.configure("Treeview.Heading", background=c["raised"], foreground=c["muted"], relief="flat", padding=(9, 8), font=("Segoe UI", 9, "bold"))
+        self.style.map("Treeview", background=[("selected", c["selected"])], foreground=[("selected", c["text"])])
+        self.style.map("Treeview.Heading", background=[("active", c["border"])])
+        self.style.configure("TNotebook", background=c["app"], borderwidth=0)
+        self.style.configure("TNotebook.Tab", background=c["raised"], foreground=c["muted"], padding=(16, 9), font=("Segoe UI", 9, "bold"))
+        self.style.map("TNotebook.Tab", background=[("selected", c["card"]), ("active", c["border"])], foreground=[("selected", c["text"])])
+        self.style.configure("TCheckbutton", background=c["card"], foreground=c["text"])
 
-    def button(self, parent, text, command):
-        button = ttk.Button(parent, text=text, command=lambda: self.guard(command))
+    def button(self, parent, text, command, style="Secondary.TButton"):
+        button = ttk.Button(parent, text=text, style=style, command=lambda: self.guard(command))
         button.pack(side="left", padx=3, pady=3)
+        return button
+
+    def grid_button(self, parent, text, command, row, column, style="Secondary.TButton", columnspan=1):
+        button = ttk.Button(parent, text=text, style=style, command=lambda: self.guard(command))
+        button.grid(row=row, column=column, columnspan=columnspan, sticky="ew", padx=3, pady=3)
         return button
 
     def guard(self, command) -> None:
@@ -91,59 +135,81 @@ class Application:
             messagebox.showerror("Unable to complete action", "The operation failed. Check permissions and logs, then try again.")
 
     def build_dashboard(self, frame) -> None:
-        controls = ttk.Frame(frame)
-        controls.pack(fill="x")
-        ttk.Label(controls, text="Browser:").pack(side="left")
-        ttk.Combobox(controls, textvariable=self.browser, values=list(BROWSERS), state="readonly", width=19).pack(side="left", padx=6)
-        ttk.Label(controls, text="Search:").pack(side="left", padx=(15, 0))
-        ttk.Entry(controls, textvariable=self.search, width=26).pack(side="left", padx=6)
-        ttk.Combobox(controls, textvariable=self.sort, values=["name", "created", "last opened", "status"], state="readonly", width=12).pack(side="left", padx=6)
+        controls = ttk.Frame(frame, style="Card.TFrame", padding=14)
+        controls.pack(fill="x", pady=(0, 10))
+        filters = ttk.Frame(controls, style="Card.TFrame")
+        filters.pack(side="left", fill="x", expand=True)
+        ttk.Label(filters, text="BROWSER", style="Muted.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(filters, text="SEARCH", style="Muted.TLabel").grid(row=0, column=1, sticky="w", padx=(16, 0))
+        ttk.Label(filters, text="SORT", style="Muted.TLabel").grid(row=0, column=2, sticky="w", padx=(10, 0))
+        ttk.Combobox(filters, textvariable=self.browser, values=list(BROWSERS), state="readonly", width=19).grid(row=1, column=0, sticky="w", pady=(3, 0))
+        ttk.Entry(filters, textvariable=self.search, width=26).grid(row=1, column=1, sticky="w", padx=(16, 0), pady=(3, 0))
+        ttk.Combobox(filters, textvariable=self.sort, values=["name", "created", "last opened", "status"], state="readonly", width=13).grid(row=1, column=2, sticky="w", padx=(10, 0), pady=(3, 0))
         self.sort.trace_add("write", lambda *_: self.reload())
-        self.button(controls, "+ Create Profile", self.create)
-        self.button(controls, "Launch Selected", self.launch_selected)
-        self.button(controls, "Launch All on Dola.com", self.launch_all)
+        actions = ttk.Frame(controls, style="Card.TFrame")
+        actions.pack(side="right", padx=(14, 0))
+        self.button(actions, "+ Create Profile", self.create, "Primary.TButton")
+        self.button(actions, "Launch Selected", self.launch_selected)
+        self.button(actions, "Launch All", self.launch_all)
         pane = ttk.Panedwindow(frame, orient="horizontal")
-        pane.pack(fill="both", expand=True, pady=12)
-        left, right = ttk.Frame(pane), ttk.Frame(pane, padding=(15, 0))
+        pane.pack(fill="both", expand=True)
+        left, right = ttk.Frame(pane, style="Card.TFrame", padding=12), ttk.Frame(pane, style="Card.TFrame", padding=16)
         pane.add(left, weight=3)
         pane.add(right, weight=2)
+        list_header = ttk.Frame(left, style="Card.TFrame")
+        list_header.pack(fill="x", pady=(0, 10))
+        ttk.Label(list_header, text="Browser profiles", style="Section.TLabel").pack(side="left")
+        ttk.Label(list_header, textvariable=self.profile_count, style="Muted.TLabel").pack(side="right")
         columns = ("name", "browser", "status", "opened")
-        self.table = ttk.Treeview(left, columns=columns, show="headings", selectmode="extended")
+        table_wrap = ttk.Frame(left, style="Card.TFrame")
+        table_wrap.pack(fill="both", expand=True)
+        self.table = ttk.Treeview(table_wrap, columns=columns, show="headings", selectmode="extended")
         for key, label, width in zip(columns, ("Profile", "Browser", "Status", "Last opened (UTC)"), (150, 100, 130, 165)):
             self.table.heading(key, text=label)
             self.table.column(key, width=width, minwidth=60)
         self.table.pack(side="left", fill="both", expand=True)
-        scroll = ttk.Scrollbar(left, orient="vertical", command=self.table.yview)
+        scroll = ttk.Scrollbar(table_wrap, orient="vertical", command=self.table.yview)
         scroll.pack(side="right", fill="y")
         self.table.configure(yscrollcommand=scroll.set)
         self.table.bind("<<TreeviewSelect>>", lambda *_: self.detail())
         self.details = tk.StringVar(value="Select a profile.")
-        ttk.Label(right, text="Selected Profile", font=("Segoe UI", 13, "bold")).pack(anchor="w")
-        ttk.Label(right, textvariable=self.details, wraplength=390, justify="left").pack(fill="x", pady=8)
-        row = ttk.Frame(right); row.pack(fill="x")
-        for text, fn in (("Launch", self.launch), ("Close", self.close), ("Rename", self.rename)):
-            self.button(row, text, fn)
-        row = ttk.Frame(right); row.pack(fill="x")
-        for text, fn in (("Duplicate", self.duplicate), ("Delete", self.delete), ("Open Folder", self.open_folder)):
-            self.button(row, text, fn)
-        ttk.Label(right, text="Notes").pack(anchor="w", pady=(6, 0))
+        header = ttk.Frame(right, style="Card.TFrame")
+        header.pack(fill="x")
+        ttk.Label(header, text="Selected profile", style="Section.TLabel").pack(side="left")
+        self.button(header, "Close All", self.close_all, "Danger.TButton").pack(side="right")
+        ttk.Label(right, textvariable=self.details, style="Muted.TLabel", wraplength=410, justify="left").pack(fill="x", pady=(10, 12))
+        actions = ttk.Frame(right, style="Card.TFrame")
+        actions.pack(fill="x")
+        for column in range(3):
+            actions.columnconfigure(column, weight=1)
+        self.grid_button(actions, "Launch", self.launch, 0, 0, "Primary.TButton")
+        self.grid_button(actions, "Close", self.close, 0, 1)
+        self.grid_button(actions, "Open Folder", self.open_folder, 0, 2)
+        self.grid_button(actions, "Rename", self.rename, 1, 0)
+        self.grid_button(actions, "Duplicate", self.duplicate, 1, 1)
+        self.grid_button(actions, "Delete", self.delete, 1, 2, "Danger.TButton")
+        ttk.Separator(right).pack(fill="x", pady=12)
+        ttk.Label(right, text="Notes", style="Muted.TLabel").pack(anchor="w", pady=(0, 4))
         self.notes = ttk.Entry(right); self.notes.pack(fill="x")
-        row = ttk.Frame(right); row.pack(fill="x")
+        row = ttk.Frame(right, style="Card.TFrame"); row.pack(fill="x", pady=(4, 8))
         self.button(row, "Save Notes", self.save_notes)
-        row = ttk.Frame(right); row.pack(fill="x", pady=(8, 0))
-        self.button(row, "Open Dola.com", lambda: self.navigate("https://dola.com/"))
+        ttk.Label(right, text="DOLA.COM", style="Muted.TLabel").pack(anchor="w", pady=(4, 4))
+        row = ttk.Frame(right, style="Card.TFrame"); row.pack(fill="x")
+        self.button(row, "Open Dola.com", lambda: self.navigate("https://dola.com/"), "Primary.TButton")
         self.button(row, "Refresh Page", self.refresh)
         self.url = tk.StringVar(value="https://dola.com/")
-        ttk.Entry(right, textvariable=self.url).pack(fill="x", pady=4)
-        row = ttk.Frame(right); row.pack(fill="x")
+        ttk.Entry(right, textvariable=self.url).pack(fill="x", pady=(7, 3))
+        row = ttk.Frame(right, style="Card.TFrame"); row.pack(fill="x")
         self.button(row, "Open URL", lambda: self.navigate(self.url.get()))
         self.button(row, "Mark Signup Complete", self.complete)
-        row = ttk.Frame(right); row.pack(fill="x", pady=(8, 0))
-        self.cookie_button = self.button(row, "Export Dola Cookies", self.export_cookie)
+        ttk.Separator(right).pack(fill="x", pady=12)
+        ttk.Label(right, text="COOKIES & BROWSER STATE", style="Muted.TLabel").pack(anchor="w", pady=(0, 4))
+        row = ttk.Frame(right, style="Card.TFrame"); row.pack(fill="x")
+        self.cookie_button = self.button(row, "Export Dola Cookies", self.export_cookie, "Primary.TButton")
         self.button(row, "Import Cookies", self.import_cookie)
-        row = ttk.Frame(right); row.pack(fill="x")
+        row = ttk.Frame(right, style="Card.TFrame"); row.pack(fill="x")
         self.button(row, "Export All Profile Cookies", self.export_all_cookies)
-        row = ttk.Frame(right); row.pack(fill="x")
+        row = ttk.Frame(right, style="Card.TFrame"); row.pack(fill="x")
         self.button(row, "Export Browser State", self.export_browser_state)
         self.button(row, "Import Browser State", self.import_browser_state)
     def selected(self):
@@ -163,6 +229,7 @@ class Application:
         if not hasattr(self, "table"):
             return
         profiles = self.db.list(self.search.get(), self.sort.get())
+        self.profile_count.set(f"{len(profiles)} profile{'s' if len(profiles) != 1 else ''}")
         self.table.delete(*self.table.get_children())
         for p in profiles:
             self.table.insert("", "end", iid=p.id, values=(p.name, p.browser.replace("Microsoft ", "").replace("Google ", ""), p.status, p.last_opened_at or "Never"))
@@ -221,17 +288,22 @@ class Application:
         self.root.after(200, self.poll)
 
     def build_logs(self, frame) -> None:
-        header = ttk.Frame(frame)
-        header.pack(fill="x")
-        ttk.Label(header, text="LIVE ACTIVITY LOG", font=("Segoe UI", 14, "bold")).pack(side="left")
+        card = ttk.Frame(frame, style="Card.TFrame", padding=16)
+        card.pack(fill="both", expand=True)
+        header = ttk.Frame(card, style="Card.TFrame")
+        header.pack(fill="x", pady=(0, 10))
+        ttk.Label(header, text="Live activity", style="Section.TLabel").pack(side="left")
+        ttk.Label(header, text="Events are shown without sensitive browser data", style="Muted.TLabel").pack(side="left", padx=12)
         self.follow_logs = tk.BooleanVar(value=True)
         ttk.Checkbutton(header, text="Follow live", variable=self.follow_logs).pack(side="left", padx=12)
         self.button(header, "Clear View", self.clear_log_view)
         self.log_text = scrolledtext.ScrolledText(
-            frame, height=30, wrap="word", state="disabled", font=("Cascadia Mono", 9)
+            card, height=30, wrap="word", state="disabled", font=("Cascadia Mono", 9), relief="flat", borderwidth=0
         )
-        if self.settings.values["theme"] == "Dark":
-            self.log_text.configure(background="#171b22", foreground="#d9e2ef", insertbackground="#d9e2ef")
+        self.log_text.configure(
+            background=self.colors["field"], foreground=self.colors["text"], insertbackground=self.colors["text"],
+            selectbackground=self.colors["selected"], selectforeground=self.colors["text"],
+        )
         self.log_text.pack(fill="both", expand=True, pady=(10, 0))
         self.refresh_logs(force=True)
 
@@ -374,6 +446,32 @@ class Application:
 
     def close(self) -> None:
         self.submit(self.browsers.close(self.selected()), "Profile closed.")
+
+    def close_all(self) -> None:
+        active_profiles = [profile for profile in self.db.list() if self.browsers.active(profile.id)]
+        if not active_profiles:
+            raise ValueError("No managed browser windows are open.")
+        if not messagebox.askyesno(
+            "Close all managed browsers",
+            f"Close {len(active_profiles)} managed browser window{'s' if len(active_profiles) != 1 else ''}?",
+        ):
+            return
+
+        async def run():
+            results = await asyncio.gather(
+                *(self.browsers.close(profile) for profile in active_profiles),
+                return_exceptions=True,
+            )
+            failed = [profile.name for profile, result in zip(active_profiles, results) if isinstance(result, Exception)]
+            return len(active_profiles) - len(failed), failed
+
+        def display(result):
+            closed, failed = result
+            self.status.set(f"Closed {closed} managed browser window{'s' if closed != 1 else ''}.")
+            if failed:
+                messagebox.showwarning("Some windows remained open", "Could not close: " + ", ".join(failed))
+
+        self.submit(run(), "Closing managed browser windows.", display)
 
     def navigate(self, url) -> None:
         self.submit(self.browsers.open_url(self.selected(), url), "Website opened.")
@@ -570,11 +668,15 @@ class Application:
             self.submit(run(), "State imported. Reopen the website; confirm signup again before cookie export.")
 
     def build_settings(self, frame) -> None:
+        card = ttk.Frame(frame, style="Card.TFrame", padding=18)
+        card.pack(fill="both", expand=True)
+        ttk.Label(card, text="Application settings", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(card, text="New profiles always use a fresh, dedicated local browser-data directory.", style="Muted.TLabel").pack(anchor="w", pady=(3, 16))
         self.preference_vars = {}
         choices = {"default_browser": list(BROWSERS), "cookie_format": ["JSON", "TXT", "NETSCAPE"], "theme": ["Light", "Dark"], "log_level": ["INFO", "WARNING", "ERROR"]}
         for key, label in (("default_browser", "Default Browser"), ("profile_folder", "Default Profile Folder"), ("export_folder", "Default Export Folder"), ("cookie_format", "Cookie Export Format"), ("theme", "Theme"), ("log_level", "Log Level")):
-            row = ttk.Frame(frame); row.pack(fill="x", pady=7)
-            ttk.Label(row, text=label, width=24).pack(side="left")
+            row = ttk.Frame(card, style="Card.TFrame"); row.pack(fill="x", pady=7)
+            ttk.Label(row, text=label, style="Card.TLabel", width=24).pack(side="left")
             variable = tk.StringVar(value=str(self.settings.values[key])); self.preference_vars[key] = variable
             widget = ttk.Combobox(row, textvariable=variable, values=choices[key], state="readonly", width=35) if key in choices else ttk.Entry(row, textvariable=variable, width=65)
             widget.pack(side="left")
@@ -585,10 +687,10 @@ class Application:
                         v.set(directory)
                 self.button(row, "Choose Folder", choose)
         self.auto_refresh = tk.BooleanVar(value=True)
-        ttk.Checkbutton(frame, text="Auto Refresh After Signup (required to enable cookie export)", variable=self.auto_refresh, state="disabled").pack(anchor="w", pady=8)
-        ttk.Label(frame, text="Mark Signup Complete always refreshes the Dola.com page before enabling cookie export.\nChanging the profile folder affects new profiles only.").pack(anchor="w", pady=15)
-        row = ttk.Frame(frame); row.pack(fill="x")
-        self.button(row, "Save Settings", self.save_settings)
+        ttk.Checkbutton(card, text="Auto Refresh After Signup (required to enable cookie export)", variable=self.auto_refresh, state="disabled").pack(anchor="w", pady=8)
+        ttk.Label(card, text="Mark Signup Complete always refreshes the Dola.com page before enabling cookie export.\nChanging the profile folder affects new profiles only.", style="Muted.TLabel").pack(anchor="w", pady=15)
+        row = ttk.Frame(card, style="Card.TFrame"); row.pack(fill="x")
+        self.button(row, "Save Settings", self.save_settings, "Primary.TButton")
 
     def save_settings(self) -> None:
         self.settings.save({key: v.get() for key, v in self.preference_vars.items()})

@@ -50,7 +50,13 @@ class BrowserManager:
         self.playwright = None
         self.test_executable = test_executable
         self.headless = headless
-        self.lock = asyncio.Lock()
+        # Each persistent directory has its own launch lock.  A global lock
+        # made bulk launches needlessly serial: profile 2 waited for profile 1
+        # to open the website, and so on.  Separate locks preserve the
+        # one-context-per-directory guarantee while allowing different browser
+        # profiles to start at the same time.
+        self.profile_locks: dict[str, asyncio.Lock] = {}
+        self.playwright_lock = asyncio.Lock()
 
     def active(self, profile_id: str) -> bool:
         return profile_id in self.contexts
@@ -61,7 +67,8 @@ class BrowserManager:
         reuse: bool = False,
         window_bounds: tuple[int, int, int, int] | None = None,
     ):
-        async with self.lock:
+        lock = self.profile_locks.setdefault(p.id, asyncio.Lock())
+        async with lock:
             if self.active(p.id):
                 if reuse:
                     return self.contexts[p.id]
@@ -77,8 +84,10 @@ class BrowserManager:
                 raise ValueError(f"{p.browser} was not found on this computer.")
             try:
                 if self.playwright is None:
-                    from playwright.async_api import async_playwright
-                    self.playwright = await async_playwright().start()
+                    async with self.playwright_lock:
+                        if self.playwright is None:
+                            from playwright.async_api import async_playwright
+                            self.playwright = await async_playwright().start()
                 kwargs = {"executable_path": str(installed)} if self.test_executable else {"channel": BROWSERS[p.browser]}
                 if platform.system() == "Windows":
                     # Playwright adds this by default; Windows does not need it and
@@ -124,7 +133,8 @@ class BrowserManager:
         return self.contexts[p.id]
 
     async def close(self, p: Profile) -> None:
-        async with self.lock:
+        lock = self.profile_locks.setdefault(p.id, asyncio.Lock())
+        async with lock:
             context = self.context(p)
             await context.close()
             self._closed(p.id, context)
@@ -175,15 +185,19 @@ class BrowserManager:
         window_bounds: dict[str, tuple[int, int, int, int]] | None = None,
     ) -> tuple[list[Profile], list[str]]:
         """Open every saved profile independently, continuing if one fails."""
-        opened: list[Profile] = []
-        failures: list[str] = []
-        for profile in profiles:
+        async def open_one(profile: Profile) -> tuple[Profile, str | None]:
             try:
                 bounds = window_bounds.get(profile.id) if window_bounds else None
                 await self.launch_and_open_dola(profile, bounds)
-                opened.append(profile)
+                return profile, None
             except ValueError as error:
-                failures.append(f"{profile.name}: {error}")
+                return profile, str(error)
+
+        # Launches use different user-data directories, so they can safely
+        # start concurrently.  Results remain in the caller's selected order.
+        results = await asyncio.gather(*(open_one(profile) for profile in profiles))
+        opened = [profile for profile, error in results if error is None]
+        failures = [f"{profile.name}: {error}" for profile, error in results if error]
         return opened, failures
 
     async def refresh(self, p: Profile) -> None:

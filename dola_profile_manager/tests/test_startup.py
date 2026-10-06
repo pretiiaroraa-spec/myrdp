@@ -26,6 +26,16 @@ def test_settings_survive_reload(environment, tmp_path):
     assert restored.values['default_browser'] == 'Google Chrome'
 
 
+def test_extension_setting_requires_an_unpacked_manifest(environment, tmp_path):
+    _, settings, _ = environment
+    with pytest.raises(ValueError, match='manifest'):
+        settings.save({'extension_folder': str(tmp_path / 'missing_extension')})
+    extension = tmp_path / 'extension'; extension.mkdir()
+    (extension / 'manifest.json').write_text('{"manifest_version": 3, "name": "Local", "version": "1"}', encoding='utf-8')
+    settings.save({'extension_folder': str(extension)})
+    assert settings.values['extension_folder'] == str(extension.resolve())
+
+
 @pytest.mark.integration
 @pytest.mark.skipif(not os.environ.get('DISPLAY') and os.name != 'nt', reason='Desktop display required')
 def test_real_entrypoint_starts_and_closes(tmp_path):

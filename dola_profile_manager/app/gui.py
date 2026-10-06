@@ -681,7 +681,7 @@ class Application:
         ttk.Label(card, text="New profiles always use a fresh, dedicated local browser-data directory.", style="Muted.TLabel").pack(anchor="w", pady=(3, 16))
         self.preference_vars = {}
         choices = {"default_browser": list(BROWSERS), "cookie_format": ["JSON", "TXT", "NETSCAPE"], "log_level": ["INFO", "WARNING", "ERROR"]}
-        for key, label in (("default_browser", "Default Browser"), ("profile_folder", "Default Profile Folder"), ("export_folder", "Default Export Folder"), ("cookie_format", "Cookie Export Format"), ("log_level", "Log Level")):
+        for key, label in (("default_browser", "Default Browser"), ("profile_folder", "Default Profile Folder"), ("export_folder", "Default Export Folder"), ("extension_folder", "Extension Folder (optional)"), ("cookie_format", "Cookie Export Format"), ("log_level", "Log Level")):
             row = ttk.Frame(card, style="Card.TFrame"); row.pack(fill="x", pady=7)
             ttk.Label(row, text=label, style="Card.TLabel", width=24).pack(side="left")
             variable = tk.StringVar(value=str(self.settings.values[key])); self.preference_vars[key] = variable
@@ -692,10 +692,14 @@ class Application:
                     directory = filedialog.askdirectory()
                     if directory:
                         v.set(directory)
-                self.button(row, "Choose Folder", choose)
+                if key == "extension_folder":
+                    self.button(row, "Install Local Extension", choose, "Primary.TButton")
+                    self.button(row, "Remove Extension", lambda v=variable: v.set(""))
+                else:
+                    self.button(row, "Choose Folder", choose)
         self.auto_refresh = tk.BooleanVar(value=True)
         ttk.Checkbutton(card, text="Auto Refresh After Signup (required to enable cookie export)", variable=self.auto_refresh, state="disabled").pack(anchor="w", pady=8)
-        ttk.Label(card, text="Mark Signup Complete always refreshes the Dola.com page before enabling cookie export.\nChanging the profile folder affects new profiles only.", style="Muted.TLabel").pack(anchor="w", pady=15)
+        ttk.Label(card, text="Select an unpacked extension folder only when it contains manifest.json. It is loaded when a managed browser profile starts; restart open profiles after changing it.\nMark Signup Complete always refreshes the Dola.com page before enabling cookie export. Changing the profile folder affects new profiles only.", style="Muted.TLabel", wraplength=760, justify="left").pack(anchor="w", pady=15)
         row = ttk.Frame(card, style="Card.TFrame"); row.pack(fill="x")
         self.button(row, "Save Settings", self.save_settings, "Primary.TButton")
 

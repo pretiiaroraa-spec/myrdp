@@ -61,6 +61,21 @@ class BrowserManager:
     def active(self, profile_id: str) -> bool:
         return profile_id in self.contexts
 
+    def extension_args(self) -> list[str]:
+        """Load an approved local unpacked extension for each managed launch.
+
+        The application neither downloads extensions nor configures their
+        network behaviour.  Settings validation guarantees the selected folder
+        contains a manifest before this command-line argument is used.
+        """
+        folder = str(self.profiles.settings.values.get("extension_folder", "")).strip()
+        if not folder:
+            return []
+        extension = Path(folder).expanduser().resolve()
+        if not (extension.is_dir() and (extension / "manifest.json").is_file()):
+            raise ValueError("Configured extension folder is missing manifest.json. Choose it again in Settings.")
+        return [f"--load-extension={extension}"]
+
     async def launch(
         self,
         p: Profile,
@@ -93,7 +108,7 @@ class BrowserManager:
                     # Playwright adds this by default; Windows does not need it and
                     # Edge otherwise shows an unsupported-command-line warning.
                     kwargs["ignore_default_args"] = ["--no-sandbox"]
-                browser_args = ["--no-first-run", "--no-default-browser-check", "--disable-sync"]
+                browser_args = ["--no-first-run", "--no-default-browser-check", "--disable-sync", *self.extension_args()]
                 if window_bounds:
                     x, y, width, height = window_bounds
                     browser_args.extend((f"--window-position={x},{y}", f"--window-size={width},{height}"))

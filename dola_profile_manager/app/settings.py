@@ -3,7 +3,8 @@ from pathlib import Path
 import json
 
 DEFAULTS = {"default_browser": "Microsoft Edge", "cookie_format": "JSON",
-            "auto_refresh": True, "theme": "Light", "log_level": "INFO"}
+            "auto_refresh": True, "theme": "Light", "log_level": "INFO",
+            "extension_folder": ""}
 
 
 class Settings:
@@ -30,6 +31,21 @@ class Settings:
             path = Path(values[key]).expanduser().resolve()
             path.mkdir(parents=True, exist_ok=True)
             values[key] = str(path)
+        extension_folder = str(values.get("extension_folder", "")).strip()
+        if extension_folder:
+            extension = Path(extension_folder).expanduser().resolve()
+            manifest = extension / "manifest.json"
+            if not extension.is_dir() or not manifest.is_file():
+                raise ValueError("Choose an unpacked browser extension folder containing manifest.json.")
+            try:
+                metadata = json.loads(manifest.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                raise ValueError("The extension manifest.json is not valid JSON.") from error
+            if not isinstance(metadata, dict) or not metadata.get("manifest_version") or not metadata.get("name"):
+                raise ValueError("The extension manifest is missing required metadata.")
+            values["extension_folder"] = str(extension)
+        else:
+            values["extension_folder"] = ""
         with self.db.connection() as db:
             for name, value in values.items():
                 db.execute("INSERT INTO settings VALUES (?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", (name, json.dumps(value)))

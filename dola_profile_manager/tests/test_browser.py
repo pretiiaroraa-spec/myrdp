@@ -83,6 +83,27 @@ def test_bulk_launch_starts_independent_profiles_concurrently(environment):
     asyncio.run(run())
 
 
+def test_configured_unpacked_extension_is_loaded_for_each_profile(environment, tmp_path):
+    db, settings, profiles = environment
+    extension = tmp_path / 'approved_extension'
+    extension.mkdir()
+    (extension / 'manifest.json').write_text('{"manifest_version": 3, "name": "Test Extension", "version": "1.0"}', encoding='utf-8')
+    settings.save({'extension_folder': str(extension)})
+    profile = profiles.create('Extension profile', 'Google Chrome')
+    manager = BrowserManager(db, profiles)
+    playwright = MagicMock(); context = MagicMock(); context.close = AsyncMock()
+    playwright.chromium.launch_persistent_context = AsyncMock(return_value=context)
+    manager.playwright = playwright
+
+    async def run():
+        with patch('app.browser_manager.detect_browser', return_value=Path('browser.exe')):
+            await manager.launch(profile)
+
+    asyncio.run(run())
+    arguments = playwright.chromium.launch_persistent_context.call_args.kwargs['args']
+    assert f'--load-extension={extension.resolve()}' in arguments
+
+
 @pytest.mark.parametrize('browser,relative', [('Microsoft Edge', 'Microsoft/Edge/Application/msedge.exe'), ('Google Chrome', 'Google/Chrome/Application/chrome.exe')])
 def test_windows_browser_detection(tmp_path, monkeypatch, browser, relative):
     executable = tmp_path / relative; executable.parent.mkdir(parents=True); executable.touch()

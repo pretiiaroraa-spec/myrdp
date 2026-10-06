@@ -32,8 +32,8 @@ def test_real_browser_isolation_persistence_state_and_manual_input(environment, 
             assert manager.active(a.id) and manager.active(b.id)
             for context in (first, second):
                 await context.route('https://dola.com/**', lambda route: route.fulfill(status=200, content_type='text/html', body=HTML))
-            await manager.open_url(a, 'https://dola.com/')
-            await manager.open_url(b, 'https://dola.com/')
+            await manager.launch_and_open_dola(a)
+            await manager.launch_and_open_dola(b)
             pa = await manager.current_page(a); pb = await manager.current_page(b)
             await first.add_cookies([{'name':'isolation', 'value':'profile-a-only', 'domain':'dola.com', 'path':'/', 'secure':True, 'sameSite':'Lax'}])
             await pa.evaluate("localStorage.setItem('isolation', 'profile-a-only')")

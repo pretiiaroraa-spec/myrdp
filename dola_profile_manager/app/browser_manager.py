@@ -10,6 +10,7 @@ from .utils import dola_domain, now, valid_url
 from urllib.parse import urlsplit
 
 log = logging.getLogger(__name__)
+DOLA_URL = "https://dola.com/"
 
 
 def detect_browser(browser: str) -> Path | None:
@@ -127,10 +128,39 @@ class BrowserManager:
     async def open_url(self, p: Profile, url: str) -> None:
         url = valid_url(url)
         context = await self.launch(p, reuse=True)
-        page = await context.new_page()
+        pages = [page for page in context.pages if not page.is_closed()]
+        # A persistent context normally starts with an empty tab. Reuse it so
+        # Launch does not leave an unnecessary blank tab beside Dola.com.
+        page = next((page for page in reversed(pages) if page.url == "about:blank"), None)
+        if page is None:
+            page = await context.new_page()
         await page.goto(url, wait_until="domcontentloaded", timeout=45000)
         await page.bring_to_front()
         log.info("Dola.com opened: %s" if dola_domain(urlsplit(url).hostname or "") else "Website opened: %s", p.id)
+
+    async def launch_and_open_dola(self, p: Profile) -> None:
+        """Launch one independent profile and bring Dola.com to the foreground."""
+        try:
+            await self.open_url(p, DOLA_URL)
+        except ValueError:
+            raise
+        except Exception:
+            raise ValueError(
+                "The profile launched, but Dola.com could not be opened. "
+                "Check your Internet connection and browser certificate settings, then use Open Dola.com to retry."
+            ) from None
+
+    async def launch_all_and_open_dola(self, profiles: list[Profile]) -> tuple[list[Profile], list[str]]:
+        """Open every saved profile independently, continuing if one fails."""
+        opened: list[Profile] = []
+        failures: list[str] = []
+        for profile in profiles:
+            try:
+                await self.launch_and_open_dola(profile)
+                opened.append(profile)
+            except ValueError as error:
+                failures.append(f"{profile.name}: {error}")
+        return opened, failures
 
     async def refresh(self, p: Profile) -> None:
         await (await self.current_page(p)).reload(wait_until="load", timeout=45000)

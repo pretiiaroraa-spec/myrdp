@@ -37,8 +37,10 @@ def test_dashboard_forms_settings_and_errors(environment, tmp_path):
                 app.create(); root.update()
                 dialog = next(w for w in root.winfo_children() if isinstance(w, tk.Toplevel))
                 create = next(w for w in descendants(dialog) if isinstance(w, ttk.Button) and w.cget('text') == 'Create')
-                create.invoke(); root.update()
+                create.invoke(); wait(root, app)
             assert len(db.list()) == 3 and len(app.table.get_children()) == 3
+            assert app.profile_names('Profile 009', 3) == ['Profile 009', 'Profile 010', 'Profile 011']
+            assert app.profile_names('Team', 3) == ['Team 1', 'Team 2', 'Team 3']
             p = db.list()[0]; app.table.selection_set(p.id); app.detail()
             assert str(app.cookie_button.cget('state')) == 'disabled'
             with patch('app.gui.simpledialog.askstring', return_value='GUI Rename'):
@@ -79,11 +81,12 @@ def test_gui_browser_exports_and_state_workflow(environment, tmp_path):
     with patch('app.gui.messagebox.showerror', side_effect=lambda title, text: errors.append(text)), patch('app.gui.messagebox.askyesno', return_value=True):
         app = Application(root, db, settings, profiles)
         app.browsers.test_executable = Path(executable)
-        first, second = [profiles.create(f'GUI Browser {i}', 'Google Chrome') for i in (1, 2)]
-        app.reload()
-        try:
+        with patch.object(app.browsers, 'launch_and_open_dola', side_effect=app.browsers.launch):
+            first, second = [profiles.create(f'GUI Browser {i}', 'Google Chrome') for i in (1, 2)]
+            app.reload()
             for p in (first, second):
                 app.table.selection_set(p.id); app.launch(); wait(root, app)
+        try:
             assert len(app.browsers.contexts) == 2
             async def prepare():
                 for context in app.browsers.contexts.values():

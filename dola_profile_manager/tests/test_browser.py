@@ -38,6 +38,21 @@ def test_missing_browser(environment, browser):
             asyncio.run(BrowserManager(db, profiles).launch(p))
 
 
+def test_launch_all_opens_every_profile_and_reports_individual_failures(environment):
+    db, _, profiles = environment
+    first = profiles.create('Profile 001', 'Microsoft Edge')
+    second = profiles.create('Profile 002', 'Google Chrome')
+    manager = BrowserManager(db, profiles)
+
+    async def run():
+        with patch.object(manager, 'launch_and_open_dola', new=AsyncMock(side_effect=[None, ValueError('Google Chrome was not found on this computer.')])):
+            opened, failures = await manager.launch_all_and_open_dola([first, second])
+        assert opened == [first]
+        assert failures == ['Profile 002: Google Chrome was not found on this computer.']
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('browser,relative', [('Microsoft Edge', 'Microsoft/Edge/Application/msedge.exe'), ('Google Chrome', 'Google/Chrome/Application/chrome.exe')])
 def test_windows_browser_detection(tmp_path, monkeypatch, browser, relative):
     executable = tmp_path / relative; executable.parent.mkdir(parents=True); executable.touch()

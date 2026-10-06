@@ -4,6 +4,7 @@ from pathlib import Path
 import logging
 import os
 import queue
+import re
 import subprocess
 import sys
 import tkinter as tk
@@ -89,6 +90,7 @@ class Application:
         ttk.Combobox(controls, textvariable=self.sort, values=["name", "created", "last opened", "status"], state="readonly", width=12).pack(side="left", padx=6)
         self.sort.trace_add("write", lambda *_: self.reload())
         self.button(controls, "+ Create Profile", self.create)
+        self.button(controls, "Launch All on Dola.com", self.launch_all)
         pane = ttk.Panedwindow(frame, orient="horizontal")
         pane.pack(fill="both", expand=True, pady=12)
         left, right = ttk.Frame(pane), ttk.Frame(pane, padding=(15, 0))
@@ -213,20 +215,73 @@ class Application:
     def create(self) -> None:
         dialog = tk.Toplevel(self.root); dialog.title("Create Profile"); dialog.transient(self.root); dialog.grab_set()
         name = tk.StringVar(value=f"Profile {len(self.db.list()) + 1:03d}")
-        browser = tk.StringVar(value=self.browser.get()); notes = tk.StringVar()
+        browser = tk.StringVar(value=self.browser.get()); notes = tk.StringVar(); quantity = tk.StringVar(value="1")
         for label, variable in (("Profile Name", name), ("Browser", browser), ("Notes", notes)):
             ttk.Label(dialog, text=label).pack(anchor="w", padx=15, pady=(8, 0))
             widget = ttk.Combobox(dialog, textvariable=variable, values=list(BROWSERS), state="readonly") if label == "Browser" else ttk.Entry(dialog, textvariable=variable, width=45)
             widget.pack(fill="x", padx=15)
+        ttk.Label(dialog, text="Profiles to create").pack(anchor="w", padx=15, pady=(8, 0))
+        ttk.Entry(dialog, textvariable=quantity, width=12).pack(anchor="w", padx=15)
+        ttk.Label(dialog, text="For more than one profile, sequential names are created automatically.", wraplength=330).pack(anchor="w", padx=15, pady=(4, 0))
         def save():
-            p = self.profiles.create(name.get(), browser.get(), notes.get())
-            dialog.destroy(); self.reload(); self.table.selection_set(p.id); self.detail()
+            try:
+                count = int(quantity.get())
+            except ValueError:
+                raise ValueError("Profiles to create must be a whole number.") from None
+            if count < 1:
+                raise ValueError("Profiles to create must be at least 1.")
+            names = self.profile_names(name.get(), count)
+            chosen_browser, chosen_notes = browser.get(), notes.get()
+            dialog.destroy()
+            async def run():
+                return await asyncio.to_thread(
+                    lambda: [self.profiles.create(profile_name, chosen_browser, chosen_notes) for profile_name in names]
+                )
+            def select_created(created):
+                self.reload()
+                self.table.selection_set(created[0].id)
+                self.detail()
+            self.submit(run(), f"Created {count} isolated profile{'s' if count != 1 else ''}.", select_created)
         row = ttk.Frame(dialog); row.pack(pady=12)
         self.button(row, "Create", save)
         self.button(row, "Cancel", dialog.destroy)
 
     def launch(self) -> None:
-        self.submit(self.browsers.launch(self.selected()), "Profile launched.")
+        self.submit(self.browsers.launch_and_open_dola(self.selected()), "Profile launched and Dola.com opened.")
+
+    def launch_all(self) -> None:
+        profiles = self.db.list()
+        if not profiles:
+            raise ValueError("Create at least one profile first.")
+        def display(result):
+            opened, failures = result
+            self.status.set(
+                f"Opened Dola.com in {len(opened)} of {len(profiles)} profile"
+                f"{'s' if len(profiles) != 1 else ''}."
+            )
+            if failures:
+                messagebox.showwarning(
+                    "Some profiles did not open",
+                    f"Opened {len(opened)} of {len(profiles)} profiles.\n\n" + "\n".join(failures),
+                )
+        self.submit(
+            self.browsers.launch_all_and_open_dola(profiles),
+            "Opening Dola.com in saved profiles.",
+            display,
+        )
+
+    @staticmethod
+    def profile_names(first_name: str, count: int) -> list[str]:
+        """Generate readable consecutive display names without limiting the count."""
+        first_name = first_name.strip()
+        if count == 1:
+            return [first_name]
+        match = re.fullmatch(r"(.*?)(\d+)", first_name)
+        if match:
+            prefix, number = match.groups()
+            width, start = len(number), int(number)
+            return [f"{prefix}{start + offset:0{width}d}" for offset in range(count)]
+        return [f"{first_name} {number}" for number in range(1, count + 1)]
 
     def close(self) -> None:
         self.submit(self.browsers.close(self.selected()), "Profile closed.")

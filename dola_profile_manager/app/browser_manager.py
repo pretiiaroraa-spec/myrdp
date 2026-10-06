@@ -104,10 +104,16 @@ class BrowserManager:
                             from playwright.async_api import async_playwright
                             self.playwright = await async_playwright().start()
                 kwargs = {"executable_path": str(installed)} if self.test_executable else {"channel": BROWSERS[p.browser]}
+                # Playwright disables all extensions by default.  This manager
+                # explicitly supports user-managed extensions, including normal
+                # browser-store installs, so retain the browser's extension
+                # system for every isolated profile.
+                ignored_default_args = ["--disable-extensions"]
                 if platform.system() == "Windows":
-                    # Playwright adds this by default; Windows does not need it and
-                    # Edge otherwise shows an unsupported-command-line warning.
-                    kwargs["ignore_default_args"] = ["--no-sandbox"]
+                    # Windows does not need this Linux sandbox flag; leaving it
+                    # in causes Edge to show an unsupported-flag warning.
+                    ignored_default_args.append("--no-sandbox")
+                kwargs["ignore_default_args"] = ignored_default_args
                 browser_args = ["--no-first-run", "--no-default-browser-check", "--disable-sync", *self.extension_args()]
                 if window_bounds:
                     x, y, width, height = window_bounds

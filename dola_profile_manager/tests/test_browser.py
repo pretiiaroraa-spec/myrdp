@@ -29,6 +29,7 @@ def test_channels_duplicate_launch_and_close(environment, browser, channel):
     assert arguments['channel'] == channel and arguments['user_data_dir'] == str(p.path)
     assert arguments['headless'] is False
     assert arguments['args'] == ['--no-first-run', '--no-default-browser-check', '--disable-sync']
+    assert '--disable-extensions' in arguments['ignore_default_args']
 
 
 @pytest.mark.parametrize('browser', ['Microsoft Edge', 'Google Chrome'])

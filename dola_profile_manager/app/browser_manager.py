@@ -84,6 +84,8 @@ class BrowserManager:
     ):
         lock = self.profile_locks.setdefault(p.id, asyncio.Lock())
         async with lock:
+            if p.archived:
+                raise ValueError("This profile is archived. Restore it before launching.")
             if self.active(p.id):
                 if reuse:
                     return self.contexts[p.id]

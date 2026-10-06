@@ -57,6 +57,21 @@ def test_new_profile_folder_preserves_old_profiles(environment, tmp_path):
     assert manager.verify(old) == old.path and manager.verify(new) == new.path
 
 
+def test_archived_profile_keeps_data_and_is_excluded_from_active_listing(environment):
+    db, _, manager = environment
+    old = manager.create('Old profile', 'Microsoft Edge')
+    current = manager.create('Current profile', 'Google Chrome')
+    (old.path / 'kept.txt').write_text('keep this browser data', encoding='utf-8')
+
+    manager.set_archived(old, True)
+    assert old.path.is_dir() and (old.path / 'kept.txt').read_text(encoding='utf-8') == 'keep this browser data'
+    assert [profile.id for profile in db.list(archived=False)] == [current.id]
+    assert [profile.id for profile in db.list(archived=True)] == [old.id]
+
+    manager.set_archived(db.get(old.id), False)
+    assert {profile.id for profile in db.list(archived=False)} == {old.id, current.id}
+
+
 @pytest.mark.parametrize('name,browser', [('', 'Microsoft Edge'), ('x', 'Firefox'), ('x'*121, 'Google Chrome')])
 def test_invalid_creation(environment, name, browser):
     with pytest.raises(ValueError):

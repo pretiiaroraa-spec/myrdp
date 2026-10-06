@@ -43,6 +43,14 @@ def test_missing_browser(environment, browser):
             asyncio.run(BrowserManager(db, profiles).launch(p))
 
 
+def test_archived_profile_cannot_launch(environment):
+    db, _, profiles = environment
+    profile = profiles.create('Archived', 'Google Chrome')
+    profiles.set_archived(profile, True)
+    with pytest.raises(ValueError, match='archived'):
+        asyncio.run(BrowserManager(db, profiles).launch(db.get(profile.id)))
+
+
 def test_launch_all_opens_every_profile_and_reports_individual_failures(environment):
     db, _, profiles = environment
     first = profiles.create('Profile 001', 'Microsoft Edge')

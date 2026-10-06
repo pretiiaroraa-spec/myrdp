@@ -33,10 +33,9 @@ The application creates `data/app.db`, `profiles/`, `exports/`, `imports/` and `
 ## Using the dashboard
 
 1. Select Microsoft Edge or Google Chrome, then **Create Profile**. Enter its name, browser, optional non-sensitive notes and how many isolated profiles to create. For a batch, names such as `Profile 001` continue sequentially (`Profile 002`, `Profile 003`, and so on). There is no application-defined maximum.
-2. Select one or more rows with Ctrl/Shift and click **Launch Selected**, or click **Launch All on Dola.com**. Each selected profile opens independently and newly launched windows tile into a grid rather than stack behind one another. The app continues if one browser launch fails and reports the affected profile.
+2. Select one or more rows with Ctrl/Shift and click **Launch Selected**, or click **Launch All**. Each selected profile opens independently and newly launched windows tile into a grid rather than stack behind one another. The app continues if one browser launch fails and reports the affected profile.
 3. Complete signup/login manually in the visible browser. Enter your phone number, password, OTP and any verification yourself.
-4. The optional helper can copy supplied phone/OTP text, or type it into the browser field you have explicitly focused. **Enter OTP types text only; it does not press Submit or retrieve a code.** The helper does not identify form selectors automatically. Cross-origin embedded frames are not supported by the helper; enter text directly in the browser for those fields.
-5. Click **Mark Signup Complete** after you finish. The app reloads an open `dola.com` page, waits for load completion and confirms the context remains managed. This is your confirmation of completion, not an automated check of account status.
+4. Click **Mark Signup Complete** after you finish. The app reloads an open `dola.com` page, waits for load completion and confirms the context remains managed. This is your confirmation of completion, not an automated check of account status.
 6. Export Dola cookies as JSON or readable TXT; choose the destination in the save dialog. Cookie export is enabled only after completion in the **current active session**.
 7. Close the profile and repeat independently with other profiles. There is no configured profile-count limit; RAM, disk and browser resources determine practical concurrency.
 
@@ -51,6 +50,7 @@ Each profile gets a UUID ID and an independent `profiles/profile_<uuid>/` direct
 Profiles made with older releases are left unchanged. If the app identifies one as older, it blocks launch rather than risk opening personal browser data. Create a new profile for a fresh session; the app never silently deletes or changes an existing profile.
 
 - **Rename:** changes metadata only; the directory stays stable.
+- **Archive:** keeps every browser file intact but hides the profile from the normal view. Archived profiles are skipped by **Launch All** and bulk cookie export. Select **Archived** (or **All**) in the Show filter and choose **Restore Profile** when you need it again.
 - **Duplicate:** requires closure, warns about session data and copies into a newly allocated directory. It refuses links and known external lock files. A duplicate intentionally starts with copied browser state; later changes are independent. Browser/OS encryption may limit portability across machines or Windows accounts.
 - **Delete:** requires closure, displays the exact name and directory and asks for confirmation. Directory ownership is checked before deleting. A database failure restores the temporarily renamed directory. If cleanup fails after the database deletion, an unlisted `.deleted_profile_*` folder may remain; it can be removed manually after verifying its identity and closing browsers.
 - **Open Folder:** opens the verified profile directory in Explorer.

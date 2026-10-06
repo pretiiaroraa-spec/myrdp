@@ -73,6 +73,13 @@ class ProfileManager:
         self.db.update(p.id, name=name.strip())
         log.info("Profile renamed: %s", p.id)
 
+    def set_archived(self, p: Profile, archived: bool, active: bool = False) -> None:
+        """Hide an inactive profile from normal launches without touching its data."""
+        if archived:
+            self.ensure_closed(p, active)
+        self.db.update(p.id, archived=archived)
+        log.info("Profile %s: %s", "archived" if archived else "restored", p.id)
+
     def ensure_closed(self, p: Profile, active: bool) -> Path:
         if active or p.id in self.active_ids:
             raise ValueError("Close this profile before duplicating or deleting it.")

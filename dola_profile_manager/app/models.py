@@ -15,6 +15,7 @@ class Profile:
     last_opened_at: str | None
     status: str
     notes: str
+    archived: bool = False
 
     @property
     def path(self) -> Path:

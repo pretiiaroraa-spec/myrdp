@@ -17,9 +17,13 @@ class Database:
                     id TEXT PRIMARY KEY, name TEXT NOT NULL, browser TEXT NOT NULL,
                     directory TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL, last_opened_at TEXT,
-                    status TEXT NOT NULL, notes TEXT NOT NULL);
+                    status TEXT NOT NULL, notes TEXT NOT NULL,
+                    archived INTEGER NOT NULL DEFAULT 0);
                 CREATE TABLE IF NOT EXISTS settings (name TEXT PRIMARY KEY, value TEXT NOT NULL);
             ''')
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(profiles)")}
+            if "archived" not in columns:
+                db.execute("ALTER TABLE profiles ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
             db.execute("UPDATE profiles SET status='Closed' WHERE status='Active'")
 
     @contextmanager
@@ -32,12 +36,15 @@ class Database:
         finally:
             db.close()
 
-    def list(self, search: str = "", sort: str = "name") -> list[Profile]:
+    def list(self, search: str = "", sort: str = "name", archived: bool | None = None) -> list[Profile]:
         order = {"name": "name COLLATE NOCASE", "created": "created_at", "last opened": "last_opened_at DESC", "status": "status"}.get(sort, "name")
         with self.connection() as db:
-            rows = db.execute(f"SELECT * FROM profiles ORDER BY {order}").fetchall()
+            if archived is None:
+                rows = db.execute(f"SELECT * FROM profiles ORDER BY {order}").fetchall()
+            else:
+                rows = db.execute(f"SELECT * FROM profiles WHERE archived=? ORDER BY {order}", (int(archived),)).fetchall()
         profiles = [Profile(**dict(row)) for row in rows]
-        return [p for p in profiles if search.casefold() in " ".join((p.id, p.name, p.browser, p.status)).casefold()]
+        return [p for p in profiles if search.casefold() in " ".join((p.id, p.name, p.browser, p.status, "Archived" if p.archived else "")).casefold()]
 
     def get(self, profile_id: str) -> Profile:
         with self.connection() as db:
@@ -48,10 +55,13 @@ class Database:
 
     def insert(self, p: Profile) -> None:
         with self.connection() as db:
-            db.execute("INSERT INTO profiles VALUES (?,?,?,?,?,?,?,?,?)", tuple(p.__dict__.values()))
+            db.execute(
+                "INSERT INTO profiles (id,name,browser,directory,created_at,updated_at,last_opened_at,status,notes,archived) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (p.id, p.name, p.browser, p.directory, p.created_at, p.updated_at, p.last_opened_at, p.status, p.notes, int(p.archived)),
+            )
 
     def update(self, profile_id: str, **values) -> None:
-        if not values or not set(values) <= {"name", "notes", "status", "last_opened_at"}:
+        if not values or not set(values) <= {"name", "notes", "status", "last_opened_at", "archived"}:
             raise ValueError("Invalid metadata update.")
         values["updated_at"] = now()
         with self.connection() as db:

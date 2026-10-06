@@ -42,6 +42,7 @@ class Application:
         self.browser = tk.StringVar(value=settings.values["default_browser"])
         self.search = tk.StringVar()
         self.sort = tk.StringVar(value="name")
+        self.profile_view = tk.StringVar(value="Active")
         self.profile_count = tk.StringVar(value="0 profiles")
         self.status = tk.StringVar(value="Ready • Signup and verification are completed manually in the browser.")
         titlebar = ttk.Frame(root, style="App.TFrame")
@@ -143,10 +144,13 @@ class Application:
         ttk.Label(filters, text="BROWSER", style="Muted.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(filters, text="SEARCH", style="Muted.TLabel").grid(row=0, column=1, sticky="w", padx=(16, 0))
         ttk.Label(filters, text="SORT", style="Muted.TLabel").grid(row=0, column=2, sticky="w", padx=(10, 0))
+        ttk.Label(filters, text="SHOW", style="Muted.TLabel").grid(row=0, column=3, sticky="w", padx=(10, 0))
         ttk.Combobox(filters, textvariable=self.browser, values=list(BROWSERS), state="readonly", width=19).grid(row=1, column=0, sticky="w", pady=(3, 0))
         ttk.Entry(filters, textvariable=self.search, width=26).grid(row=1, column=1, sticky="w", padx=(16, 0), pady=(3, 0))
         ttk.Combobox(filters, textvariable=self.sort, values=["name", "created", "last opened", "status"], state="readonly", width=13).grid(row=1, column=2, sticky="w", padx=(10, 0), pady=(3, 0))
+        ttk.Combobox(filters, textvariable=self.profile_view, values=["Active", "Archived", "All"], state="readonly", width=10).grid(row=1, column=3, sticky="w", padx=(10, 0), pady=(3, 0))
         self.sort.trace_add("write", lambda *_: self.reload())
+        self.profile_view.trace_add("write", lambda *_: self.reload())
         actions = ttk.Frame(controls, style="Card.TFrame")
         actions.pack(side="right", padx=(14, 0))
         self.button(actions, "+ Create Profile", self.create, "Primary.TButton")
@@ -190,6 +194,7 @@ class Application:
         self.grid_button(actions, "Rename", self.rename, 1, 0)
         self.grid_button(actions, "Duplicate", self.duplicate, 1, 1)
         self.grid_button(actions, "Delete", self.delete, 1, 2, "Danger.TButton")
+        self.archive_button = self.grid_button(actions, "Archive Profile", self.toggle_archive, 2, 0, columnspan=3)
         ttk.Separator(right).pack(fill="x", pady=12)
         ttk.Label(right, text="Notes", style="Muted.TLabel").pack(anchor="w", pady=(0, 4))
         self.notes = ttk.Entry(right); self.notes.pack(fill="x")
@@ -230,8 +235,10 @@ class Application:
         selected = self.table.selection() if hasattr(self, "table") else ()
         if not hasattr(self, "table"):
             return
-        profiles = self.db.list(self.search.get(), self.sort.get())
-        self.profile_count.set(f"{len(profiles)} profile{'s' if len(profiles) != 1 else ''}")
+        archived = {"Active": False, "Archived": True, "All": None}[self.profile_view.get()]
+        profiles = self.db.list(self.search.get(), self.sort.get(), archived=archived)
+        view_label = self.profile_view.get().lower()
+        self.profile_count.set(f"{len(profiles)} {view_label} profile{'s' if len(profiles) != 1 else ''}")
         self.table.delete(*self.table.get_children())
         for p in profiles:
             self.table.insert("", "end", iid=p.id, values=(p.name, p.browser.replace("Microsoft ", "").replace("Google ", ""), p.status, p.last_opened_at or "Never"))
@@ -243,12 +250,15 @@ class Application:
         try:
             p = self.selected()
             active = self.browsers.active(p.id)
-            self.details.set(f"{p.name}\n{p.browser}  •  {p.status}\nID: {p.id}\nDirectory: {p.directory}\nCreated: {p.created_at}")
+            state = "Archived" if p.archived else p.status
+            self.details.set(f"{p.name}\n{p.browser}  •  {state}\nID: {p.id}\nDirectory: {p.directory}\nCreated: {p.created_at}")
             self.notes.delete(0, "end"); self.notes.insert(0, p.notes)
             self.cookie_button.configure(state="normal" if active and p.id in self.browsers.ready else "disabled")
+            self.archive_button.configure(text="Restore Profile" if p.archived else "Archive Profile")
         except ValueError:
             self.details.set("Select a profile.")
             self.cookie_button.configure(state="disabled")
+            self.archive_button.configure(text="Archive Profile")
 
     def submit(self, coroutine, message="Completed.", callback=None) -> None:
         self.busy = True
@@ -389,9 +399,9 @@ class Application:
         self.launch_profiles(profiles)
 
     def launch_all(self) -> None:
-        profiles = self.db.list()
+        profiles = self.db.list(archived=False)
         if not profiles:
-            raise ValueError("Create at least one profile first.")
+            raise ValueError("No active profiles are available. Restore an archived profile or create a new one first.")
         self.launch_profiles(profiles)
 
     def launch_profiles(self, profiles) -> None:
@@ -511,6 +521,16 @@ class Application:
                 await asyncio.to_thread(self.profiles.delete, p, False)
             self.submit(run(), "Profile deleted.")
 
+    def toggle_archive(self) -> None:
+        p = self.selected()
+        if p.archived:
+            self.profiles.set_archived(p, False)
+            self.status.set(f"Restored '{p.name}'. It can be launched again.")
+        else:
+            self.profiles.set_archived(p, True, self.browsers.active(p.id))
+            self.status.set(f"Archived '{p.name}'. Its browser data was kept and Launch All will skip it.")
+        self.reload()
+
     def open_folder(self) -> None:
         path = self.profiles.verify(self.selected())
         if sys.platform == "win32":
@@ -568,9 +588,9 @@ class Application:
         self.export_all_cookies(dola_only=True)
 
     def export_all_cookies(self, dola_only: bool | None = None) -> None:
-        profiles = self.db.list()
+        profiles = self.db.list(archived=False)
         if not profiles:
-            raise ValueError("Create at least one profile first.")
+            raise ValueError("No active profiles are available for export.")
         if dola_only is None:
             scope = messagebox.askyesnocancel(
                 "Choose cookie scope",

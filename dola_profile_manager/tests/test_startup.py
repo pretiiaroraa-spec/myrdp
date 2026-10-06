@@ -22,7 +22,7 @@ def test_settings_survive_reload(environment, tmp_path):
     db, settings, _ = environment
     settings.save({'theme': 'Dark', 'default_browser': 'Google Chrome'})
     restored = Settings(db, tmp_path)
-    assert restored.values['theme'] == 'Dark'
+    assert restored.values['theme'] == 'Light'
     assert restored.values['default_browser'] == 'Google Chrome'
 
 

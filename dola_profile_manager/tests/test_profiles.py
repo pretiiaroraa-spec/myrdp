@@ -51,7 +51,7 @@ def test_tampered_marker(environment):
 def test_new_profile_folder_preserves_old_profiles(environment, tmp_path):
     _, settings, manager = environment
     old = manager.create('Old', 'Google Chrome')
-    settings.save({'profile_folder': str(tmp_path / 'new_profiles'), 'theme': 'Dark'})
+    settings.save({'profile_folder': str(tmp_path / 'new_profiles')})
     new = manager.create('New', 'Google Chrome')
     assert old.path.parent != new.path.parent
     assert manager.verify(old) == old.path and manager.verify(new) == new.path

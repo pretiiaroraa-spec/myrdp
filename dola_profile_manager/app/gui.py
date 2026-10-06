@@ -66,7 +66,8 @@ class Application:
         root.after(100, self.poll)
 
     def apply_theme(self) -> None:
-        dark = self.settings.values["theme"] == "Dark"
+        # A single light palette keeps the interface consistent and readable.
+        dark = False
         self.colors = (
             {
                 "app": "#181b21", "card": "#242931", "raised": "#2d333d", "field": "#171b21",
@@ -160,6 +161,7 @@ class Application:
         list_header.pack(fill="x", pady=(0, 10))
         ttk.Label(list_header, text="Browser profiles", style="Section.TLabel").pack(side="left")
         ttk.Label(list_header, textvariable=self.profile_count, style="Muted.TLabel").pack(side="right")
+        self.button(list_header, "Export All Dola Cookies", self.export_all_dola_cookies, "Primary.TButton").pack(side="right", padx=(0, 8))
         columns = ("name", "browser", "status", "opened")
         table_wrap = ttk.Frame(left, style="Card.TFrame")
         table_wrap.pack(fill="both", expand=True)
@@ -561,20 +563,25 @@ class Application:
                 await asyncio.to_thread(export_cookies, p, cookies, target[0], format, target[1])
             self.submit(run(), "Dola.com cookies exported. Store the file securely.")
 
-    def export_all_cookies(self) -> None:
+    def export_all_dola_cookies(self) -> None:
+        """Export only Dola.com cookies from every saved browser profile."""
+        self.export_all_cookies(dola_only=True)
+
+    def export_all_cookies(self, dola_only: bool | None = None) -> None:
         profiles = self.db.list()
         if not profiles:
             raise ValueError("Create at least one profile first.")
-        scope = messagebox.askyesnocancel(
-            "Choose cookie scope",
-            "Export cookies from every saved Edge and Chrome profile?\n\n"
-            "Yes: all websites in each profile.\n"
-            "No: Dola.com cookies only.\n"
-            "Cancel: do nothing.",
-        )
-        if scope is None:
-            return
-        dola_only = not scope
+        if dola_only is None:
+            scope = messagebox.askyesnocancel(
+                "Choose cookie scope",
+                "Export cookies from every saved Edge and Chrome profile?\n\n"
+                "Yes: all websites in each profile.\n"
+                "No: Dola.com cookies only.\n"
+                "Cancel: do nothing.",
+            )
+            if scope is None:
+                return
+            dola_only = not scope
         warning = WARNING if dola_only else (
             "Exporting all browser cookies can include active sessions for websites other than Dola.com. "
             "Store the files securely and never share them publicly."
@@ -673,8 +680,8 @@ class Application:
         ttk.Label(card, text="Application settings", style="Section.TLabel").pack(anchor="w")
         ttk.Label(card, text="New profiles always use a fresh, dedicated local browser-data directory.", style="Muted.TLabel").pack(anchor="w", pady=(3, 16))
         self.preference_vars = {}
-        choices = {"default_browser": list(BROWSERS), "cookie_format": ["JSON", "TXT", "NETSCAPE"], "theme": ["Light", "Dark"], "log_level": ["INFO", "WARNING", "ERROR"]}
-        for key, label in (("default_browser", "Default Browser"), ("profile_folder", "Default Profile Folder"), ("export_folder", "Default Export Folder"), ("cookie_format", "Cookie Export Format"), ("theme", "Theme"), ("log_level", "Log Level")):
+        choices = {"default_browser": list(BROWSERS), "cookie_format": ["JSON", "TXT", "NETSCAPE"], "log_level": ["INFO", "WARNING", "ERROR"]}
+        for key, label in (("default_browser", "Default Browser"), ("profile_folder", "Default Profile Folder"), ("export_folder", "Default Export Folder"), ("cookie_format", "Cookie Export Format"), ("log_level", "Log Level")):
             row = ttk.Frame(card, style="Card.TFrame"); row.pack(fill="x", pady=7)
             ttk.Label(row, text=label, style="Card.TLabel", width=24).pack(side="left")
             variable = tk.StringVar(value=str(self.settings.values[key])); self.preference_vars[key] = variable

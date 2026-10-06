@@ -48,8 +48,8 @@ def test_dashboard_forms_settings_and_errors(environment, tmp_path):
             assert db.get(p.id).name == 'GUI Rename'
             app.notes.insert(0, 'Non-sensitive notes'); app.save_notes()
             assert db.get(p.id).notes == 'Non-sensitive notes'
-            app.preference_vars['theme'].set('Dark'); app.save_settings()
-            assert settings.values['theme'] == 'Dark'
+            app.save_settings()
+            assert settings.values['theme'] == 'Light'
             app.log_path.parent.mkdir(parents=True, exist_ok=True)
             app.log_path.write_text('2026-10-06 INFO app Profile created: test\n', encoding='utf-8')
             app.refresh_logs(force=True)
